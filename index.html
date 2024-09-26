@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gasto Semanal</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gasto Semanal</h1>
+        <div class="input-group">
+            <div>
+                <label for="nombreGasto">Gasto:</label>
+                <input type="text" id="nombreGasto" placeholder="Nombre Gasto">
+            </div>
+            <div>
+                <label for="cantidadGasto">Cantidad:</label>
+                <input type="text" id="cantidadGasto" placeholder="Cantidad en $">
+            </div>
+            <button id="agregarBtn" disabled>Agregar</button>
+        </div>
+        <div class="gastos">
+            <h2>Listado</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Cantidad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="gastoListado">
+                </tbody>
+            </table>
+        </div>
+        <div class="presupuesto">
+            <h2>Presupuesto</h2>
+            <p id="presupuestoTotal">Presupuesto: $200,000</p>
+            <p id="restanteTotal">Restante: $200,000</p>
+        </div>
+    </div>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+
+        .container {
+            margin-top: 8%;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            color: #2c3e50;
+            width: 500px;
+            max-width: 100%;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .input-group div {
+            flex: 1;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 1.7%;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 5%;
+            margin-left: 5%;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #bdc3c7;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        .editarBtn, .borrarBtn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 5px;
+            padding: 5px 10px;
+        }
+
+        .editarBtn {
+            background: #f39c12;
+        }
+
+        .editarBtn:hover, .borrarBtn:hover {
+            background: #c0392b;
+        }
+
+        .presupuesto {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .presupuesto p {
+            margin: 5px 0;
+        }
+
+        #presupuestoTotal {
+            background: #d6eaff;
+            padding: 10px;
+            border-radius: 5px;
+            color: #004080;
+        }
+
+        #restanteTotal {
+            background: #d1ffcf;
+            padding: 10px;
+            border-radius: 5px;
+            color: #2c6e49;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const agregarBtn = document.getElementById('agregarBtn');
+            const nombreGastoInput = document.getElementById('nombreGasto');
+            const cantidadGastoInput = document.getElementById('cantidadGasto');
+            const gastoListado = document.getElementById('gastoListado');
+            const presupuestoTotalElement = document.getElementById('presupuestoTotal');
+            const restanteTotalElement = document.getElementById('restanteTotal');
+
+            let presupuestoTotal = null;
+            let restanteTotal = null;
+            let editingGasto = null;
+
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount);
+            };
+
+            const actualizarRestante = () => {
+                restanteTotalElement.textContent = `Restante: ${formatCurrency(restanteTotal)}`;
+
+                if (restanteTotal <= 0) {
+                    restanteTotalElement.style.color = '#e74c3c';
+                    restanteTotalElement.style.backgroundColor = '#9c0720';
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Presupuesto agotado',
+                        text: 'El presupuesto restante ha llegado a cero o menos.',
+                        confirmButtonText: 'Entendido'
+                    });
+                } else {
+                    const porcentajeRestante = (restanteTotal / presupuestoTotal) * 100;
+
+                    if (porcentajeRestante < 60 && porcentajeRestante >= 30) {
+                        restanteTotalElement.style.color = '#FF8F00';
+                        restanteTotalElement.style.backgroundColor = '#FFD54F';
+                    } else if (porcentajeRestante < 30) {
+                        restanteTotalElement.style.color = '#e74c3c';
+                        restanteTotalElement.style.backgroundColor = '#9c0720';
+                    } else {
+                        restanteTotalElement.style.color = '#2c6e49';
+                        restanteTotalElement.style.backgroundColor = '#d1ffcf';
+                    }
+                }
+            };
+
+            const mostrarSweetAlertPresupuesto = () => {
+                Swal.fire({
+                    title: 'Ingrese su presupuesto',
+                    input: 'number',
+                    inputLabel: 'Presupuesto en $',
+                    inputPlaceholder: 'Ingrese el presupuesto inicial',
+                    showCancelButton: false,
+                    confirmButtonText: 'Guardar',
+                    allowOutsideClick: false,
+                    inputValidator: (value) => {
+                        if (!value || value <= 0) {
+                            return 'Por favor, ingrese un presupuesto válido mayor que cero';
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        presupuestoTotal = parseFloat(result.value);
+                        restanteTotal = presupuestoTotal;
+
+                        presupuestoTotalElement.textContent = `Presupuesto: ${formatCurrency(presupuestoTotal)}`;
+                        restanteTotalElement.textContent = `Restante: ${formatCurrency(restanteTotal)}`;
+                    }
+                });
+            };
+
+            const validarNombreGasto = () => {
+                const nombreGasto = nombreGastoInput.value.trim();
+                return /^[a-zA-Z\s]+$/.test(nombreGasto);
+            };
+
+            const validarCantidadGasto = () => {
+                const cantidadGasto = cantidadGastoInput.value.trim();
+                return /^[0-9]+$/.test(cantidadGasto);
+            };
+
+            const habilitarBotonAgregar = () => {
+                agregarBtn.disabled = !(validarNombreGasto() && validarCantidadGasto());
+            };
+
+            nombreGastoInput.addEventListener('input', habilitarBotonAgregar);
+            cantidadGastoInput.addEventListener('input', habilitarBotonAgregar);
+
+            mostrarSweetAlertPresupuesto();
+
+            const agregarGasto = () => {
+                if (!validarNombreGasto()) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'El nombre del gasto solo debe contener letras y espacios',
+                    });
+                    return;
+                }
+
+                if (!validarCantidadGasto()) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Por favor, ingrese una cantidad válida (solo números)',
+                    });
+                    return;
+                }
+
+                const nombreGasto = nombreGastoInput.value.trim();
+                const cantidadGasto = parseFloat(cantidadGastoInput.value.trim());
+
+                // Nueva verificación: cantidad mayor al restante
+                if (cantidadGasto > restanteTotal && !editingGasto) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'La cantidad no puede ser mayor al presupuesto restante',
+                    });
+                    return;
+                }
+
+                if (editingGasto) {
+                    const prevCantidad = parseFloat(editingGasto.querySelector('.cantidad').dataset.value);
+                    const diferencia = cantidadGasto - prevCantidad;
+                    
+                    // Verificar que la nueva cantidad editada no supere el presupuesto restante
+                    if (diferencia > restanteTotal) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'La cantidad editada no puede ser mayor al presupuesto restante',
+                        });
+                        return;
+                    }
+
+                    restanteTotal -= diferencia;
+                    actualizarRestante();
+                    
+                    editingGasto.querySelector('.nombre').textContent = nombreGasto;
+                    editingGasto.querySelector('.cantidad').textContent = formatCurrency(cantidadGasto);
+                    editingGasto.querySelector('.cantidad').dataset.value = cantidadGasto;
+                    editingGasto = null;
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="nombre">${nombreGasto}</td>
+                        <td class="cantidad" data-value="${cantidadGasto}">${formatCurrency(cantidadGasto)}</td>
+                        <td>
+                            <button class="editarBtn">Editar</button>
+                            <button class="borrarBtn">Borrar</button>
+                        </td>
+                    `;
+
+                    gastoListado.appendChild(row);
+                    restanteTotal -= cantidadGasto;
+                    actualizarRestante();
+
+                    row.querySelector('.editarBtn').addEventListener('click', () => {
+                        nombreGastoInput.value = row.querySelector('.nombre').textContent;
+                        cantidadGastoInput.value = parseFloat(row.querySelector('.cantidad').dataset.value);
+                        editingGasto = row;
+                        habilitarBotonAgregar();
+                    });
+
+                    row.querySelector('.borrarBtn').addEventListener('click', () => {
+                        Swal.fire({
+                            title: '¿Está seguro?',
+                            text: '¿Desea eliminar este gasto?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, eliminar',
+                            cancelButtonText: 'No, cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                const cantidadEliminada = parseFloat(row.querySelector('.cantidad').dataset.value);
+                                restanteTotal += cantidadEliminada;
+                                row.remove();
+                                actualizarRestante();
+
+                                Swal.fire(
+                                    'Eliminado',
+                                    'El gasto ha sido eliminado',
+                                    'success'
+                                );
+                            }
+                        });
+                    });
+                }
+
+                nombreGastoInput.value = '';
+                cantidadGastoInput.value = '';
+                habilitarBotonAgregar();
+            };
+
+            agregarBtn.addEventListener('click', agregarGasto);
+
+            [nombreGastoInput, cantidadGastoInput].forEach(input => {
+                input.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        agregarGasto();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
